@@ -1,7 +1,8 @@
 {
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "vite build",
+    "build": "vite build && touch docs/.nojekyll",
+    "build:dist": "vite build --outDir dist",
     "preview": "vite preview --port 5174"
   },
   "dependencies": {

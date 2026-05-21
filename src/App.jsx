@@ -1015,7 +1015,7 @@ const buildSwot = (user, profile, score, diagnosis) => {
   if (avgValue && avgValue <= 2) strengths.push("국수영 평균이 상위권이라 상향 카드 검토가 가능합니다.");
   if (setechCount >= 5) strengths.push(`세특/탐구 근거가 ${setechCount}건 있어 학종 소재가 보입니다.`);
   if (targets.length >= 2) strengths.push("목표 대학이 정리되어 전형 비교가 가능합니다.");
-  if (recordScore >= 70) strengths.push("생활기록부 AI 분석에서 활용 가능한 강점이 확인됩니다.");
+  if (recordScore >= 70) strengths.push("생활기록부 분석에서 활용 가능한 강점이 확인됩니다.");
 
   if (!avgValue) weaknesses.push("성적 데이터가 부족해 합격선 비교가 어렵습니다.");
   if (avgValue && avgValue > 4) weaknesses.push("핵심 과목 등급 보완이 최우선입니다.");
@@ -1090,6 +1090,30 @@ const buildSusiCards = (user, profile, catalog, avgValue) => {
   return ordered.length >= 6 ? ordered.slice(0, 6) : [...ordered, ...cards.filter(card => !ordered.some(item => item.id === card.id))].slice(0, 6);
 };
 
+const buildStrategyAnalysisMeta = (profile, goalTargets, careerTests) => {
+  const hasRecordText = Boolean(normalizeRecordText(profile?.gibpu?.원문 || ""));
+  const hasSavedRecordAnalysis = Boolean(profile?.gibpu?.AI분석);
+  const careerNetConnected = (careerTests || []).some(test => test.source === "careernet");
+  return {
+    modeLabel: supabaseEnabled ? "AI API 연동 가능" : "로컬 규칙 기반",
+    modeTone: supabaseEnabled ? "api" : "rule",
+    aiStatusLabel: supabaseEnabled ? "Supabase Edge Function" : "외부 AI API 미연동",
+    aiStatusTone: supabaseEnabled ? "api" : "local",
+    recordLabel: hasRecordText
+      ? hasSavedRecordAnalysis
+        ? supabaseEnabled ? "저장된 AI 분석" : "저장된 규칙 분석"
+        : "규칙 분석"
+      : "원문 없음",
+    recordTone: hasRecordText ? "real" : "temp",
+    careerNetLabel: careerNetConnected ? "CareerNet API 연결" : "검사 링크/내장 데이터",
+    careerNetTone: careerNetConnected ? "api" : "temp",
+    admissionLabel: "앱 내부 입결 추정",
+    hasRecordText,
+    hasGoalTargets: goalTargets.length > 0,
+    careerNetConnected,
+  };
+};
+
 const buildStrategyReport = (user, profile, catalog = UNIVS, careerTests = CAREER_TESTS) => {
   const major = user?.preferredMajor || "학과 미입력";
   const guide = getSetechGuide(major);
@@ -1127,6 +1151,7 @@ const buildStrategyReport = (user, profile, catalog = UNIVS, careerTests = CAREE
     susiCards,
     targetStats,
     careerTests,
+    analysisMeta: buildStrategyAnalysisMeta(profile, goalTargets, careerTests),
     roadmap: buildRoadmapState(profile?.checklist || {}),
     actionPlan: [
       diagnosis.actions[0],
@@ -2214,13 +2239,27 @@ select:focus{border-color:#0EA5E9;}
 .strategy-eyebrow{display:inline-flex;align-items:center;border-radius:999px;background:var(--brand-blue-soft);color:var(--brand-blue);font-size:11px;font-weight:900;padding:5px 10px;margin-bottom:10px;}
 .strategy-title{font-size:24px;line-height:1.28;font-weight:900;color:var(--brand-gray);letter-spacing:-0.5px;}
 .strategy-copy{font-size:13px;line-height:1.65;color:var(--brand-muted);margin-top:6px;}
+.analysis-badge-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 12px;}
+.strategy-hero .analysis-badge-row{margin-top:12px;margin-bottom:0;}
+.analysis-badge{display:inline-flex;align-items:center;border-radius:999px;border:1px solid transparent;padding:4px 9px;font-size:11px;font-weight:900;line-height:1.2;white-space:nowrap;}
+.analysis-badge.real{background:#F0FDF4;border-color:rgba(5,150,105,0.18);color:#059669;}
+.analysis-badge.rule{background:#EAF7FF;border-color:rgba(14,165,233,0.2);color:#0284C7;}
+.analysis-badge.temp{background:#FFF7ED;border-color:rgba(249,115,22,0.2);color:#C2410C;}
+.analysis-badge.api{background:#EEF2FF;border-color:rgba(79,70,229,0.18);color:#4F46E5;}
+.analysis-badge.local{background:#F1F5F9;border-color:rgba(100,116,139,0.22);color:#475569;}
+.analysis-badge.estimate{background:#FEFCE8;border-color:rgba(202,138,4,0.22);color:#A16207;}
+.analysis-note{border:1px solid rgba(148,163,184,0.2);background:rgba(248,250,252,0.72);border-radius:14px;padding:10px 12px;font-size:12.3px;line-height:1.65;color:#64748B;margin:0 0 14px;}
+.analysis-note strong{color:var(--brand-gray);font-weight:900;}
+.strategy-hero .analysis-note{max-width:780px;margin-top:12px;margin-bottom:0;background:rgba(255,255,255,0.62);}
 .strategy-score{min-width:112px;border-radius:24px;background:linear-gradient(135deg,var(--brand-blue),#0068D9);color:#fff;text-align:center;padding:18px 16px;box-shadow:0 16px 34px rgba(14,165,233,0.24);}
 .strategy-score strong{display:block;font-size:34px;line-height:1;font-weight:900;letter-spacing:-0.8px;}
 .strategy-score span{display:block;margin-top:7px;font-size:12px;font-weight:900;}
+.strategy-score small{display:block;margin-top:5px;font-size:10.5px;font-weight:800;color:rgba(255,255,255,0.78);}
 .strategy-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 .strategy-kpi{border:1px solid rgba(255,255,255,0.74);background:rgba(255,255,255,0.72);backdrop-filter:blur(20px) saturate(155%);border-radius:20px;padding:15px 16px;box-shadow:0 12px 30px rgba(11,19,36,0.06),inset 0 1px 0 rgba(255,255,255,0.72);}
 .strategy-kpi span{display:block;font-size:11px;font-weight:800;color:var(--brand-subtle);margin-bottom:6px;}
 .strategy-kpi strong{display:block;font-size:18px;line-height:1.25;font-weight:900;color:var(--brand-gray);letter-spacing:-0.25px;}
+.strategy-kpi small{display:block;margin-top:5px;font-size:11px;line-height:1.35;color:var(--brand-subtle);font-weight:800;}
 .strategy-card{border:1px solid rgba(255,255,255,0.74);background:rgba(255,255,255,0.72);backdrop-filter:blur(20px) saturate(155%);border-radius:24px;padding:20px 22px;box-shadow:0 16px 40px rgba(11,19,36,0.08),inset 0 1px 0 rgba(255,255,255,0.72);}
 .strategy-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
 .strategy-label{font-size:11px;font-weight:900;color:var(--brand-blue);margin-bottom:5px;}
@@ -2455,19 +2494,42 @@ select:focus{border-color:#0EA5E9;}
 }
 `;
 
+function AnalysisBadges({ items = [] }) {
+  return (
+    <div className="analysis-badge-row">
+      {items.map((item, index) => (
+        <span key={`${item.text}-${index}`} className={`analysis-badge ${item.tone || "rule"}`}>{item.text}</span>
+      ))}
+    </div>
+  );
+}
+
+function AnalysisNote({ children }) {
+  return <div className="analysis-note">{children}</div>;
+}
+
 function StrategyReport({ report, compact = false }) {
   if (!report) return null;
   return (
     <div className={`strategy-report${compact ? " compact" : ""}`}>
       <section className="strategy-hero">
         <div>
-          <div className="strategy-eyebrow">AI 전략센터 · SUMMIT 핵심 기능 간소화</div>
+          <div className="strategy-eyebrow">전략 리포트 · 분석 출처 표시</div>
           <div className="strategy-title">{report.major} 입시 전략 리포트</div>
           <div className="strategy-copy">성적 진단, SWOT, 세특 갭, 과목 선택, 수시 6장, 진로 탐색을 한 화면에서 요약합니다.</div>
+          <AnalysisBadges items={[
+            { tone:report.analysisMeta?.modeTone || "rule", text:report.analysisMeta?.modeLabel || "로컬 규칙 기반" },
+            { tone:report.analysisMeta?.aiStatusTone || "local", text:report.analysisMeta?.aiStatusLabel || "외부 AI API 미연동" },
+            { tone:"estimate", text:report.analysisMeta?.admissionLabel || "앱 내부 입결 추정" },
+          ]} />
+          <AnalysisNote>
+            <strong>현재 개발 기준:</strong> 이 화면은 학생이 입력한 성적표, 목표/관심 대학, 생활기록부 원문을 앱 내부 규칙으로 계산합니다. Supabase가 꺼진 상담사 전용 버전에서는 외부 AI API를 호출하지 않으며, 추천 문구 일부는 코드에 들어있는 기준표와 템플릿입니다.
+          </AnalysisNote>
         </div>
         <div className="strategy-score">
           <strong>{report.total}</strong>
           <span>{report.level}</span>
+          <small>규칙 기반 종합점수</small>
         </div>
       </section>
 
@@ -2485,8 +2547,9 @@ function StrategyReport({ report, compact = false }) {
           <strong>{report.setechCount}/{report.setechTarget}</strong>
         </div>
         <div className="strategy-kpi">
-          <span>생기부 AI</span>
+          <span>생기부 분석</span>
           <strong>{report.recordAnalysis.level}</strong>
+          <small>{report.analysisMeta?.recordLabel || "규칙 분석"}</small>
         </div>
       </div>
 
@@ -2498,6 +2561,13 @@ function StrategyReport({ report, compact = false }) {
           </div>
           <span className="strategy-tag">{report.diagnosis.latestSemester}</span>
         </div>
+        <AnalysisBadges items={[
+          { tone:"real", text:"성적표 입력값" },
+          { tone:"rule", text:"국수영 평균 규칙" },
+        ]} />
+        <AnalysisNote>
+          <strong>데이터/기준:</strong> 입력된 국어·수학·영어 등급과 최근 입력 학기를 봅니다. 국수영 평균이 2.0등급 이내면 상위권 유지, 4.0등급 이내면 상승 전략 필요, 그 외는 집중 관리로 분류합니다.
+        </AnalysisNote>
         <div className="strategy-split">
           <div className="strategy-diagnosis">
             <div className="strategy-big-number">{report.diagnosis.latestAvg ? `${report.diagnosis.latestAvg}등급` : "성적 필요"}</div>
@@ -2521,6 +2591,13 @@ function StrategyReport({ report, compact = false }) {
             <h3>강점은 살리고, 위험은 상담 과제로 바꾸기</h3>
           </div>
         </div>
+        <AnalysisBadges items={[
+          { tone:"real", text:"성적·목표대학·생기부 입력" },
+          { tone:"rule", text:"조건문 템플릿" },
+        ]} />
+        <AnalysisNote>
+          <strong>생성 방식:</strong> 국수영 평균, 세특/탐구 근거 수, 목표대학 2개 여부, 생활기록부 분석 점수를 조건으로 문장을 조합합니다. 현재는 생성형 AI가 새로 쓴 문장이 아니라 앱 안의 규칙 문구입니다.
+        </AnalysisNote>
         <div className="swot-grid">
           <div className="swot-card strength"><h4>Strength</h4>{report.swot.strengths.map((item, i) => <p key={i}>{item}</p>)}</div>
           <div className="swot-card weakness"><h4>Weakness</h4>{report.swot.weaknesses.map((item, i) => <p key={i}>{item}</p>)}</div>
@@ -2537,6 +2614,13 @@ function StrategyReport({ report, compact = false }) {
           </div>
           <span className="strategy-tag">{report.setechGap ? `${report.setechGap}건 보완` : "목표 도달"}</span>
         </div>
+        <AnalysisBadges items={[
+          { tone:"real", text:"생활기록부 원문/교과발달" },
+          { tone:"rule", text:"키워드 카운트" },
+        ]} />
+        <AnalysisNote>
+          <strong>데이터/기준:</strong> 생활기록부 교과발달 항목 수와 원문 속 세특·탐구·보고서·발표·실험·토론 키워드가 있는 줄 수를 세어 목표 10건과 비교합니다.
+        </AnalysisNote>
         <div className="gap-meter">
           <div className="gap-meter-fill" style={{ width:`${Math.min(100, report.setechCount / report.setechTarget * 100)}%` }} />
         </div>
@@ -2553,6 +2637,13 @@ function StrategyReport({ report, compact = false }) {
               </div>
               <span className="strategy-tag">{report.guide.coreSubjects[0]}</span>
             </div>
+            <AnalysisBadges items={[
+              { tone:"temp", text:"정적 기준표" },
+              { tone:"rule", text:"희망학과 계열 분류" },
+            ]} />
+            <AnalysisNote>
+              <strong>생성 방식:</strong> 희망학과명을 의약·공학·상경·인문사회·자연·일반 계열로 분류한 뒤 코드에 내장된 추천 주제를 보여줍니다. 학생 기록을 읽어 AI가 새로 만든 주제는 아닙니다.
+            </AnalysisNote>
             <div className="topic-grid">
               {report.guide.topics.map((topic, index) => (
                 <div key={topic} className="topic-card">
@@ -2574,6 +2665,13 @@ function StrategyReport({ report, compact = false }) {
                 <h3>전공 적합성을 보여주는 선택 과목</h3>
               </div>
             </div>
+            <AnalysisBadges items={[
+              { tone:"temp", text:"정적 기준표" },
+              { tone:"rule", text:"계열별 추천" },
+            ]} />
+            <AnalysisNote>
+              <strong>데이터/기준:</strong> 희망학과 계열별로 앱에 저장된 권장 과목과 기록 전략을 표시합니다. 학교별 실제 개설 과목, 이수 가능 여부, 교육과정 편성표는 아직 반영하지 않습니다.
+            </AnalysisNote>
             <div className="subject-plan-grid">
               {report.guide.subjectPlan.map(([subject, plan]) => (
                 <div key={subject} className="subject-plan-card">
@@ -2597,6 +2695,14 @@ function StrategyReport({ report, compact = false }) {
           </div>
           <span className="strategy-tag">작년도 입결 기준</span>
         </div>
+        <AnalysisBadges items={[
+          { tone:"real", text:"목표/관심대학 입력" },
+          { tone:"estimate", text:"앱 내부 입결 추정" },
+          { tone:"rule", text:"상향·적정·안정 규칙" },
+        ]} />
+        <AnalysisNote>
+          <strong>중요:</strong> 목표대학과 내장 대학 목록을 합쳐 후보를 만들고, 전년도 합격권은 공식 입학처 DB가 아니라 앱 내부 추정 함수로 계산합니다. 학생 평균이 추정 합격 평균보다 충분히 좋으면 안정, 비슷하면 적정, 부족하면 상향/도전으로 나눕니다.
+        </AnalysisNote>
         <div className="susi-grid">
           {report.susiCards.map(card => (
             <div key={card.id} className={`susi-card ${card.fit.className}`}>
@@ -2621,6 +2727,12 @@ function StrategyReport({ report, compact = false }) {
             </div>
             <span className="strategy-tag">{report.careerTests.some(test => test.source === "careernet") ? "커리어넷 API 연결됨" : "커리어넷 검사 링크"}</span>
           </div>
+          <AnalysisBadges items={[
+            { tone:report.analysisMeta?.careerNetTone || "temp", text:report.analysisMeta?.careerNetLabel || "검사 링크/내장 데이터" },
+          ]} />
+          <AnalysisNote>
+            <strong>연동 상태:</strong> `VITE_CAREERNET_API_KEY`가 있으면 커리어넷 대학·학과·검사 목록 일부를 API로 가져옵니다. 키가 없거나 실패하면 내장 검사 링크와 생성 파일 데이터를 사용합니다.
+          </AnalysisNote>
           <div className="career-test-grid">
               {report.careerTests.map(test => (
                 <div key={test.name} className="career-test-card">
@@ -2647,6 +2759,13 @@ function StrategyReport({ report, compact = false }) {
               <h3>목표 대학별 작년도 입결 비교</h3>
             </div>
           </div>
+          <AnalysisBadges items={[
+            { tone:"real", text:"목표대학 2개" },
+            { tone:"estimate", text:"합격권 추정" },
+          ]} />
+          <AnalysisNote>
+            <strong>데이터/기준:</strong> 목표대학으로 표시된 학교와 각 관심학과를 기준으로 앱 내부 입결 추정치를 적용합니다. 이 표시는 실제 대학 입학처 확정 자료가 아니라 상담용 비교 초안입니다.
+          </AnalysisNote>
           <div className="admission-mini-grid">
             {report.targetStats.map(item => (
               <div key={`${item.name}-${item.dept}`} className="admission-mini-card">
