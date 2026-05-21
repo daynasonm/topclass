@@ -69,12 +69,28 @@
         var isGitHubPages = window.location.hostname.endsWith("github.io");
         var isBuiltDocsPath = window.location.pathname.indexOf("/topclass/docs/") === 0;
 
+        window.__UC_APP_MOUNTED__ = false;
+
         if (isGitHubPages && !isBuiltDocsPath) {
-          window.location.replace("/topclass/docs/" + window.location.search + window.location.hash);
-          return;
+          fetch("./docs/index.html?asset=" + Date.now(), { cache: "no-store" })
+            .then(function (response) {
+              if (!response.ok) throw new Error("docs build not found");
+              return response.text();
+            })
+            .then(function (html) {
+              var match = html.match(/src="(\.\/assets\/[^"]+\.js)"/);
+              if (!match) throw new Error("built asset not found");
+              var script = document.createElement("script");
+              script.type = "module";
+              script.crossOrigin = "anonymous";
+              script.src = "./docs/" + match[1].replace("./", "");
+              document.head.appendChild(script);
+            })
+            .catch(function () {
+              window.location.replace("/topclass/docs/" + window.location.search + window.location.hash);
+            });
         }
 
-        window.__UC_APP_MOUNTED__ = false;
         window.setTimeout(function () {
           if (window.__UC_APP_MOUNTED__) return;
 
