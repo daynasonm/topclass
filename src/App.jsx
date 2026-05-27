@@ -420,6 +420,7 @@ const REQUESTS_KEY = "uc_consultation_requests_v1";
 const JOURNALS_KEY = "uc_counseling_journals_v1";
 const CLASSES_KEY = "uc_counselor_classes_v1";
 const MEMBERSHIPS_KEY = "uc_class_memberships_v1";
+const DELETED_STUDENTS_KEY = "uc_deleted_students_v1";
 const SESSION_KEY = "uc_session_v1";
 const RECORD_FILE_ACCEPT = ".pdf,image/*,.png,.jpg,.jpeg,.heic,.heif,.webp,.gif,.bmp,.tif,.tiff";
 
@@ -1357,6 +1358,17 @@ const writeJson = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
+const readDeletedStudentIds = () => {
+  const stored = readJson(DELETED_STUDENTS_KEY, []);
+  return Array.isArray(stored) ? stored.filter(Boolean) : [];
+};
+
+const writeDeletedStudentIds = ids => {
+  const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+  writeJson(DELETED_STUDENTS_KEY, uniqueIds);
+  return uniqueIds;
+};
+
 const withStudentMeta = (user, index = 0) => {
   if (user.role !== "student") return user;
   const fallback = DEMO_USERS.filter(u => u.role === "student")[index % 6] || {};
@@ -1372,9 +1384,11 @@ const withStudentMeta = (user, index = 0) => {
 
 const loadUsers = () => {
   const stored = readJson(USERS_KEY, null);
+  const deletedStudentIds = new Set(readDeletedStudentIds());
   if (Array.isArray(stored) && stored.length) {
-    const byId = new Map(stored.map(user => [user.id, user]));
+    const byId = new Map(stored.filter(user => !deletedStudentIds.has(user.id)).map(user => [user.id, user]));
     DEMO_USERS.forEach(demo => {
+      if (deletedStudentIds.has(demo.id)) return;
       const existing = byId.get(demo.id);
       byId.set(demo.id, existing ? { ...demo, ...existing } : demo);
     });
@@ -1382,46 +1396,57 @@ const loadUsers = () => {
     writeJson(USERS_KEY, migrated);
     return migrated;
   }
-  writeJson(USERS_KEY, DEMO_USERS);
-  writeJson(PROFILES_KEY, DEMO_PROFILES);
-  return DEMO_USERS;
+  const initialUsers = DEMO_USERS.filter(user => !deletedStudentIds.has(user.id));
+  const initialProfiles = Object.fromEntries(Object.entries(DEMO_PROFILES).filter(([studentId]) => !deletedStudentIds.has(studentId)));
+  writeJson(USERS_KEY, initialUsers);
+  writeJson(PROFILES_KEY, initialProfiles);
+  return initialUsers;
 };
 
 const loadProfiles = () => {
   const stored = readJson(PROFILES_KEY, null);
+  const deletedStudentIds = new Set(readDeletedStudentIds());
   if (stored && typeof stored === "object") {
     const merged = { ...DEMO_PROFILES, ...stored };
+    deletedStudentIds.forEach(studentId => {
+      delete merged[studentId];
+    });
     writeJson(PROFILES_KEY, merged);
     return merged;
   }
-  writeJson(PROFILES_KEY, DEMO_PROFILES);
-  return DEMO_PROFILES;
+  const initialProfiles = Object.fromEntries(Object.entries(DEMO_PROFILES).filter(([studentId]) => !deletedStudentIds.has(studentId)));
+  writeJson(PROFILES_KEY, initialProfiles);
+  return initialProfiles;
 };
 
 const loadRequests = () => {
   const stored = readJson(REQUESTS_KEY, null);
+  const deletedStudentIds = new Set(readDeletedStudentIds());
   if (Array.isArray(stored)) {
-    const byId = new Map(DEMO_REQUESTS.map(request => [request.id, request]));
-    stored.forEach(request => byId.set(request.id, request));
+    const byId = new Map(DEMO_REQUESTS.filter(request => !deletedStudentIds.has(request.studentId)).map(request => [request.id, request]));
+    stored.filter(request => !deletedStudentIds.has(request.studentId)).forEach(request => byId.set(request.id, request));
     const merged = Array.from(byId.values());
     writeJson(REQUESTS_KEY, merged);
     return merged;
   }
-  writeJson(REQUESTS_KEY, DEMO_REQUESTS);
-  return DEMO_REQUESTS;
+  const initialRequests = DEMO_REQUESTS.filter(request => !deletedStudentIds.has(request.studentId));
+  writeJson(REQUESTS_KEY, initialRequests);
+  return initialRequests;
 };
 
 const loadCounselingJournals = () => {
   const stored = readJson(JOURNALS_KEY, null);
+  const deletedStudentIds = new Set(readDeletedStudentIds());
   if (Array.isArray(stored)) {
-    const byId = new Map(DEMO_JOURNALS.map(journal => [journal.id, journal]));
-    stored.forEach(journal => byId.set(journal.id, journal));
+    const byId = new Map(DEMO_JOURNALS.filter(journal => !deletedStudentIds.has(journal.studentId)).map(journal => [journal.id, journal]));
+    stored.filter(journal => !deletedStudentIds.has(journal.studentId)).forEach(journal => byId.set(journal.id, journal));
     const merged = Array.from(byId.values());
     writeJson(JOURNALS_KEY, merged);
     return merged;
   }
-  writeJson(JOURNALS_KEY, DEMO_JOURNALS);
-  return DEMO_JOURNALS;
+  const initialJournals = DEMO_JOURNALS.filter(journal => !deletedStudentIds.has(journal.studentId));
+  writeJson(JOURNALS_KEY, initialJournals);
+  return initialJournals;
 };
 
 const loadCounselorClasses = () => {
@@ -1439,15 +1464,17 @@ const loadCounselorClasses = () => {
 
 const loadClassMemberships = () => {
   const stored = readJson(MEMBERSHIPS_KEY, null);
+  const deletedStudentIds = new Set(readDeletedStudentIds());
   if (Array.isArray(stored)) {
-    const byStudentId = new Map(DEMO_MEMBERSHIPS.map(item => [item.studentId, item]));
-    stored.forEach(item => byStudentId.set(item.studentId, item));
+    const byStudentId = new Map(DEMO_MEMBERSHIPS.filter(item => !deletedStudentIds.has(item.studentId)).map(item => [item.studentId, item]));
+    stored.filter(item => !deletedStudentIds.has(item.studentId)).forEach(item => byStudentId.set(item.studentId, item));
     const merged = Array.from(byStudentId.values());
     writeJson(MEMBERSHIPS_KEY, merged);
     return merged;
   }
-  writeJson(MEMBERSHIPS_KEY, DEMO_MEMBERSHIPS);
-  return DEMO_MEMBERSHIPS;
+  const initialMemberships = DEMO_MEMBERSHIPS.filter(item => !deletedStudentIds.has(item.studentId));
+  writeJson(MEMBERSHIPS_KEY, initialMemberships);
+  return initialMemberships;
 };
 
 const createId = role => `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -3795,15 +3822,27 @@ export default function App() {
     if (!profileStudent) return;
     if (!window.confirm("이 학생을 삭제하면 복구할 수 없습니다. 계속하시겠습니까?")) return;
     const studentId = profileStudent.user.id;
-    setUsers(prev => prev.filter(user => user.id !== studentId));
-    setProfiles(prev => {
-      const next = { ...prev };
-      delete next[studentId];
-      return next;
-    });
-    setClassMemberships(prev => prev.filter(item => item.studentId !== studentId));
-    setRequests(prev => prev.filter(request => request.studentId !== studentId));
-    setCounselingJournals(prev => prev.filter(journal => journal.studentId !== studentId));
+    const nextUsers = users.filter(user => user.id !== studentId);
+    const nextProfiles = { ...profiles };
+    delete nextProfiles[studentId];
+    const nextMemberships = classMemberships.filter(item => item.studentId !== studentId);
+    const nextRequests = requests.filter(request => request.studentId !== studentId);
+    const nextJournals = counselingJournals.filter(journal => journal.studentId !== studentId);
+
+    setUsers(nextUsers);
+    setProfiles(nextProfiles);
+    setClassMemberships(nextMemberships);
+    setRequests(nextRequests);
+    setCounselingJournals(nextJournals);
+    setSelectedStudentId(id => id === studentId ? nextUsers.find(user => user.role === "student")?.id || null : id);
+    if (!supabaseEnabled) {
+      writeDeletedStudentIds([...readDeletedStudentIds(), studentId]);
+      writeJson(USERS_KEY, nextUsers);
+      writeJson(PROFILES_KEY, nextProfiles);
+      writeJson(MEMBERSHIPS_KEY, nextMemberships);
+      writeJson(REQUESTS_KEY, nextRequests);
+      writeJson(JOURNALS_KEY, nextJournals);
+    }
     if (supabaseEnabled) {
       try {
         await deleteBackendStudent(studentId);

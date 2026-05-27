@@ -53,7 +53,7 @@
         font-weight: 700;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-Bc62Zvsa.js"></script>
+    <script type="module" crossorigin src="./assets/index-Bc62Zvsa.js?v=delete-fix-20260527"></script>
   </head>
   <body>
     <div id="root">
@@ -78,7 +78,7 @@
               return response.text();
             })
             .then(function (html) {
-              var match = html.match(/src="(\.\/assets\/[^"]+\.js)"/);
+              var match = html.match(/src="(\.\/assets\/[^"]+\.js(?:\?[^"]*)?)"/);
               if (!match) throw new Error("built asset not found");
               var script = document.createElement("script");
               script.type = "module";

@@ -309,6 +309,16 @@ export const createBackendClassMembership = async (studentId, classId) => {
 
 export const deleteBackendStudent = async (studentId) => {
   if (!supabase || !studentId) return;
+  const { error: requestError } = await supabase
+    .from("consultation_requests")
+    .delete()
+    .eq("student_id", studentId);
+  if (requestError) throw requestError;
+  const { error: journalError } = await supabase
+    .from("counseling_journals")
+    .delete()
+    .eq("student_id", studentId);
+  if (journalError) throw journalError;
   const { error: membershipError } = await supabase
     .from("class_memberships")
     .delete()

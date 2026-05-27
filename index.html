@@ -77,7 +77,7 @@
               return response.text();
             })
             .then(function (html) {
-              var match = html.match(/src="(\.\/assets\/[^"]+\.js)"/);
+              var match = html.match(/src="(\.\/assets\/[^"]+\.js(?:\?[^"]*)?)"/);
               if (!match) throw new Error("built asset not found");
               var script = document.createElement("script");
               script.type = "module";
