@@ -421,6 +421,7 @@ const JOURNALS_KEY = "uc_counseling_journals_v1";
 const CLASSES_KEY = "uc_counselor_classes_v1";
 const MEMBERSHIPS_KEY = "uc_class_memberships_v1";
 const DELETED_STUDENTS_KEY = "uc_deleted_students_v1";
+const REMOVED_DEMO_STUDENT_IDS = ["student-jiho", "student-doyun", "student-yuna", "student-harin"];
 const SESSION_KEY = "uc_session_v1";
 const RECORD_FILE_ACCEPT = ".pdf,image/*,.png,.jpg,.jpeg,.heic,.heif,.webp,.gif,.bmp,.tif,.tiff";
 
@@ -1360,7 +1361,8 @@ const writeJson = (key, value) => {
 
 const readDeletedStudentIds = () => {
   const stored = readJson(DELETED_STUDENTS_KEY, []);
-  return Array.isArray(stored) ? stored.filter(Boolean) : [];
+  const storedIds = Array.isArray(stored) ? stored : [];
+  return [...new Set([...REMOVED_DEMO_STUDENT_IDS, ...storedIds].filter(Boolean))];
 };
 
 const writeDeletedStudentIds = ids => {
